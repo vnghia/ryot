@@ -708,6 +708,8 @@ pub mod media {
     pub struct UserFitnessWorkoutSummary {
         pub recorded: u64,
         pub duration: u64,
+        #[serde(default)] // FIXME: Remove in the next major release
+        pub weight: Decimal,
     }
 
     #[derive(
@@ -1393,6 +1395,7 @@ pub mod fitness {
         Reps,
     }
 
+    #[skip_serializing_none]
     #[derive(
         Clone,
         Debug,
@@ -1671,6 +1674,7 @@ pub mod fitness {
         #[graphql(skip_input)]
         // If specified, the workout will be created with this ID.
         pub id: Option<String>,
+        pub repeated_from: Option<String>,
         pub name: String,
         pub comment: Option<String>,
         pub start_time: DateTimeUtc,

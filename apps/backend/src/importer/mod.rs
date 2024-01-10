@@ -51,8 +51,8 @@ pub struct DeployMediaTrackerImportInput {
 
 #[derive(Debug, InputObject, Serialize, Deserialize, Clone)]
 pub struct DeployGoodreadsImportInput {
-    // The RSS url that can be found from the user's profile
-    rss_url: String,
+    // The file path of the uploaded CSV export file.
+    csv_path: String,
 }
 
 #[derive(Debug, InputObject, Serialize, Deserialize, Clone)]
@@ -197,6 +197,7 @@ impl ImporterMutation {
 pub struct ImporterService {
     media_service: Arc<MiscellaneousService>,
     exercise_service: Arc<ExerciseService>,
+    timezone: Arc<chrono_tz::Tz>,
 }
 
 impl AuthProvider for ImporterService {}
@@ -205,10 +206,12 @@ impl ImporterService {
     pub fn new(
         media_service: Arc<MiscellaneousService>,
         exercise_service: Arc<ExerciseService>,
+        timezone: Arc<chrono_tz::Tz>,
     ) -> Self {
         Self {
             media_service,
             exercise_service,
+            timezone,
         }
     }
 
@@ -267,7 +270,11 @@ impl ImporterService {
     async fn import_exercises(&self, user_id: i32, input: DeployImportJobInput) -> Result<()> {
         let db_import_job = self.start_import_job(user_id, input.source).await?;
         let import = match input.source {
-            ImportSource::StrongApp => strong_app::import(input.strong_app.unwrap()).await.unwrap(),
+            ImportSource::StrongApp => {
+                strong_app::import(input.strong_app.unwrap(), self.timezone.clone())
+                    .await
+                    .unwrap()
+            }
             _ => unreachable!(),
         };
         let details = ImportResultResponse {
@@ -297,12 +304,17 @@ impl ImporterService {
                 .await
                 .unwrap(),
             ImportSource::Mal => mal::import(input.mal.unwrap()).await.unwrap(),
-            ImportSource::Goodreads => goodreads::import(input.goodreads.unwrap()).await.unwrap(),
+            ImportSource::Goodreads => goodreads::import(
+                input.goodreads.unwrap(),
+                &self.media_service.get_isbn_service().await.unwrap(),
+            )
+            .await
+            .unwrap(),
             ImportSource::Trakt => trakt::import(input.trakt.unwrap()).await.unwrap(),
             ImportSource::Movary => movary::import(input.movary.unwrap()).await.unwrap(),
             ImportSource::StoryGraph => story_graph::import(
                 input.story_graph.unwrap(),
-                &self.media_service.get_openlibrary_service().await.unwrap(),
+                &self.media_service.get_isbn_service().await.unwrap(),
             )
             .await
             .unwrap(),

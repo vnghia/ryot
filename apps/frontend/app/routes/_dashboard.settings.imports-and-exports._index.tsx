@@ -1,12 +1,9 @@
 import {
 	Accordion,
-	ActionIcon,
-	Alert,
 	Anchor,
 	Box,
 	Button,
 	Container,
-	CopyButton,
 	Divider,
 	FileInput,
 	Flex,
@@ -34,7 +31,6 @@ import {
 import {
 	FetcherWithComponents,
 	Form,
-	useActionData,
 	useFetcher,
 	useLoaderData,
 } from "@remix-run/react";
@@ -42,13 +38,12 @@ import {
 	DeployExportJobDocument,
 	DeployImportJobDocument,
 	ExportItem,
-	GenerateAuthTokenDocument,
 	ImportReportsDocument,
 	ImportSource,
 	UserExportsDocument,
 } from "@ryot/generated/graphql/backend/graphql";
 import { changeCase } from "@ryot/ts-utils";
-import { IconCheck, IconCopy, IconDownload } from "@tabler/icons-react";
+import { IconDownload } from "@tabler/icons-react";
 import { ReactNode, RefObject, useRef, useState } from "react";
 import { namedAction } from "remix-utils/named-action";
 import { match } from "ts-pattern";
@@ -79,20 +74,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const meta: MetaFunction = () => {
-	return [{ title: "Your Data | Ryot" }];
+	return [{ title: "Imports and Exports | Ryot" }];
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
 	const formData = await request.clone().formData();
 	return namedAction(request, {
-		generateAuthToken: async () => {
-			const { generateAuthToken } = await gqlClient.request(
-				GenerateAuthTokenDocument,
-				undefined,
-				await getAuthorizationHeader(request),
-			);
-			return json({ status: "success", generateAuthToken } as const);
-		},
 		deployImport: async () => {
 			const source = formData.get("source") as ImportSource;
 			const values = await match(source)
@@ -166,7 +153,7 @@ const mediaTrackerImportFormSchema = z.object({
 
 const traktImportFormSchema = z.object({ username: z.string() });
 
-const goodreadsImportFormSchema = z.object({ rssUrl: z.string().url() });
+const goodreadsImportFormSchema = z.object({ csvPath: z.string() });
 
 const movaryImportFormSchema = z.object({
 	ratings: z.string(),
@@ -194,13 +181,14 @@ const deployExportForm = z.object({
 
 export default function Page() {
 	const loaderData = useLoaderData<typeof loader>();
-	const actionData = useActionData<typeof action>();
 	const [deployImportSource, setDeployImportSource] = useState<ImportSource>();
 	const [progress, setProgress] = useState<number | null>(null);
 
 	const [movaryRatingPath, setMovaryRatingPath] = useState("");
 	const [movaryHistoryPath, setMovaryHistoryPath] = useState("");
 	const [movaryWatchlistPath, setMovaryWatchlistPath] = useState("");
+
+	const [goodreadsCsvPath, setGoodreadsCsvPath] = useState("");
 
 	const [storyGraphExportPath, setStoryGraphExportPath] = useState("");
 
@@ -223,7 +211,6 @@ export default function Page() {
 				<Tabs.List>
 					<Tabs.Tab value="import">Import</Tabs.Tab>
 					<Tabs.Tab value="export">Export</Tabs.Tab>
-					<Tabs.Tab value="api">API</Tabs.Tab>
 				</Tabs.List>
 				<Box mt="xl">
 					<Tabs.Panel value="import">
@@ -290,7 +277,28 @@ export default function Page() {
 											))
 											.with(ImportSource.Goodreads, () => (
 												<>
-													<TextInput label="RSS URL" required name="rssUrl" />
+													<input
+														hidden
+														name="csvPath"
+														value={goodreadsCsvPath}
+														readOnly
+													/>
+													<FileInput
+														label="CSV file"
+														accept=".csv"
+														required
+														onChange={async (file) => {
+															if (file) {
+																const path =
+																	await uploadFileToServiceAndGetPath(
+																		file,
+																		onProgress,
+																		onLoad,
+																	);
+																setGoodreadsCsvPath(path);
+															}
+														}}
+													/>
 												</>
 											))
 											.with(ImportSource.Trakt, () => (
@@ -570,7 +578,7 @@ export default function Page() {
 																		null,
 																		4,
 																	)}
-																	disabled
+																	readOnly
 																	autosize
 																/>
 															) : null}
@@ -655,59 +663,6 @@ export default function Page() {
 							) : (
 								<Text>You have not performed any exports</Text>
 							)}
-						</Stack>
-					</Tabs.Panel>
-					<Tabs.Panel value="api">
-						<Stack>
-							<Title order={2}>API Integration</Title>
-							<Form method="post" action="?intent=generateAuthToken">
-								<Button
-									variant="light"
-									color="blue"
-									radius="md"
-									type="submit"
-									fullWidth
-								>
-									Create auth token
-								</Button>
-							</Form>
-							{actionData?.generateAuthToken ? (
-								<Box>
-									<Alert
-										title="This token will be shown only once"
-										color="yellow"
-									>
-										<Flex align="center">
-											<CopyButton value={actionData.generateAuthToken}>
-												{({ copied, copy }) => (
-													<Tooltip
-														label={copied ? "Copied" : "Copy"}
-														withArrow
-														position="right"
-													>
-														<ActionIcon
-															color={copied ? "teal" : "gray"}
-															onClick={copy}
-														>
-															{copied ? (
-																<IconCheck size={16} />
-															) : (
-																<IconCopy size={16} />
-															)}
-														</ActionIcon>
-													</Tooltip>
-												)}
-											</CopyButton>
-											<TextInput
-												value={actionData.generateAuthToken}
-												readOnly
-												style={{ flex: 1 }}
-												onClick={(e) => e.currentTarget.select()}
-											/>
-										</Flex>
-									</Alert>
-								</Box>
-							) : null}
 						</Stack>
 					</Tabs.Panel>
 				</Box>

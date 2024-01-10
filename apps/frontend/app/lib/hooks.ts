@@ -1,6 +1,10 @@
+import { $path } from "@ignisda/remix-routes";
 import { useMantineTheme } from "@mantine/core";
-import { useSearchParams } from "@remix-run/react";
-import { getStringAsciiValue } from "./generals";
+import { useNavigate, useSearchParams } from "@remix-run/react";
+import { useAtom } from "jotai";
+import Cookies from "js-cookie";
+import { COOKIES_KEYS, getStringAsciiValue } from "./generals";
+import { InProgressWorkout, currentWorkoutAtom } from "./workout";
 
 export function useGetMantineColor() {
 	const theme = useMantineTheme();
@@ -32,4 +36,20 @@ export function useSearchParam() {
 	};
 
 	return [searchParams, { setP, delP }] as const;
+}
+
+export function getWorkoutStarter() {
+	const navigate = useNavigate();
+	const [_, setCurrentWorkout] = useAtom(currentWorkoutAtom);
+
+	const fn = (wkt: InProgressWorkout) => {
+		setCurrentWorkout(wkt);
+		Cookies.set(COOKIES_KEYS.isWorkoutInProgress, "true", {
+			expires: 2,
+			sameSite: "Strict",
+			secure: true,
+		});
+		navigate($path("/fitness/workouts/current"));
+	};
+	return fn;
 }

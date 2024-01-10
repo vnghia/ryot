@@ -128,7 +128,7 @@ impl MediaProvider for GoogleBooksService {
                     publish_year,
                     ..
                 } = self.google_books_response_to_search_response(b.volume_info, b.id);
-                let image = url_images.get(0).map(|i| i.image.clone());
+                let image = url_images.first().map(|i| i.image.clone());
                 MediaSearchItem {
                     identifier,
                     title,
@@ -234,5 +234,20 @@ impl GoogleBooksService {
             production_status: None,
             original_language: None,
         }
+    }
+
+    /// Get a book's ID from its ISBN
+    pub async fn id_from_isbn(&self, isbn: &str) -> Option<String> {
+        let mut resp = self
+            .client
+            .get("")
+            .query(&serde_json::json!({
+                "q": format!("isbn:{}", isbn)
+            }))
+            .unwrap()
+            .await
+            .ok()?;
+        let search: SearchResponse = resp.body_json().await.ok()?;
+        Some(search.items?.first()?.id.clone())
     }
 }
