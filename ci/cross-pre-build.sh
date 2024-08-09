@@ -2,8 +2,6 @@
 set -euxo pipefail
 
 if [[ "$CROSS_TARGET" == "aarch64-unknown-linux-gnu" ]]; then
-  apt-get update && apt-get install --assume-yes libssl-dev build-essential pkg-config
-
   sed 's/^deb http/deb [arch=amd64] http/' -i '/etc/apt/sources.list'
   echo 'deb [arch=arm64] http://ports.ubuntu.com/ jammy main restricted universe multiverse' >> /etc/apt/sources.list
   echo 'deb [arch=arm64] http://ports.ubuntu.com/ jammy-updates main restricted universe multiverse' >> /etc/apt/sources.list
