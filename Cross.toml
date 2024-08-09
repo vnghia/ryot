@@ -7,3 +7,7 @@ passthrough = [
 
 [build]
 pre-build = "ci/cross-pre-build.sh"
+
+
+[target.aarch64-unknown-linux-gnu]
+dockerfile = "ci/cross/Dockerfile.aarch64"
